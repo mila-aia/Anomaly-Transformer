@@ -1,0 +1,9 @@
+name: at
+dependencies:
+  - python=3.10.9
+  - jupyterlab
+  - mypy=0.981
+  - rope
+  - pip
+  - pip:
+    - -r requirements.txt
