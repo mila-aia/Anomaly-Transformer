@@ -132,3 +132,5 @@ dmypy.json
 # Repo specific
 dataset/
 checkpoints/
+.vscode/
+roc_curve.png

@@ -7,7 +7,14 @@ import time
 from utils.utils import *
 from model.AnomalyTransformer import AnomalyTransformer
 from data_factory.data_loader import get_loader_segment
+import matplotlib.pyplot as plt
 
+from sklearn.metrics import (
+    accuracy_score,
+    precision_recall_fscore_support,
+    roc_auc_score,
+    RocCurveDisplay
+)
 
 def my_kl_loss(p, q):
     res = p * (torch.log(p + 0.0001) - torch.log(q + 0.0001))
@@ -323,17 +330,44 @@ class Solver(object):
             attens_energy.append(cri)
             test_labels.append(labels)
 
-        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
-        test_labels = np.concatenate(test_labels, axis=0).reshape(-1)
-        test_energy = np.array(attens_energy)
+        test_labels = np.concatenate(test_labels, axis=0).reshape(-1)        
         test_labels = np.array(test_labels)
+        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
+        test_energy = np.array(attens_energy)
 
-        pred = (test_energy > thresh).astype(int)
+        # pred = (test_energy > thresh).astype(int)
+        pred = test_energy - thresh
+        pred = (pred > 0.).astype(int)
 
         gt = test_labels.astype(int)
 
         print("pred:   ", pred.shape)
         print("gt:     ", gt.shape)
+
+        auc = roc_auc_score(gt, test_energy - thresh)
+        print("auc:", auc)
+        RocCurveDisplay.from_predictions(
+            gt,
+            test_energy - thresh,
+            name="ROC curve",
+            color="darkorange",
+        )
+        plt.plot([0, 1], [0, 1], "k--", label="chance level (AUC = 0.5)")
+        plt.axis("square")
+        plt.xlabel("False Positive Rate")
+        plt.ylabel("True Positive Rate")
+        plt.title("Anomaly Transformer ROC curves:")
+        plt.legend()
+        plt.savefig('roc_curve.png')
+
+
+        accuracy = accuracy_score(gt, pred)
+        precision, recall, f_score, support = precision_recall_fscore_support(gt, pred,
+                                                                              average='binary')
+        print(
+            "Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
+                accuracy, precision,
+                recall, f_score))
 
         # detection adjustment
         anomaly_state = False
@@ -362,8 +396,6 @@ class Solver(object):
         print("pred: ", pred.shape)
         print("gt:   ", gt.shape)
 
-        from sklearn.metrics import precision_recall_fscore_support
-        from sklearn.metrics import accuracy_score
         accuracy = accuracy_score(gt, pred)
         precision, recall, f_score, support = precision_recall_fscore_support(gt, pred,
                                                                               average='binary')
